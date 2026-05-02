@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.api.users import router as users_router
 
 app = FastAPI()
 
@@ -9,9 +10,5 @@ def hello():
         "message": "Hello, FastAPI!"
     }
 
-@app.get("/users/{user_id}")
-def get_user(user_id: int):
-    return {
-        "user_id": user_id,
-        "name": "Nikolay"
-    }
+
+app.include_router(users_router)
