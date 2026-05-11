@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -7,7 +9,7 @@ client = TestClient(app)
 
 
 def create_user(client, telegram_id=1001, username="test_user", first_name="Test"):
-    """helper-функция на JSON"""
+    """helper-функция для JSON при создании"""
     return client.post(
         "/users/",
         json={
@@ -129,3 +131,118 @@ def test_delete_not_existing_user_returns_404(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
+
+
+def test_extend_subscription_for_user_without_subscription(client):
+    create_response = create_user(client, telegram_id=1001)
+
+    create_data = create_response.json()
+
+    assert create_response.status_code == 201
+    assert create_data["subscription_expires_at"] is None
+
+    extend_response = client.post("/users/1001/extend-subscription")
+
+    assert extend_response.status_code == 200
+
+    extend_data = extend_response.json()
+
+    assert extend_data["telegram_id"] == 1001
+    assert extend_data["subscription_expires_at"] is not None
+
+
+def test_extend_subscription_for_user_without_subscription_sets_30_days(client):
+    create_user(client, telegram_id=1001)
+
+    before_request = datetime.now()
+
+    response = client.post("/users/1001/extend-subscription")
+
+    after_request = datetime.now()
+
+    assert response.status_code == 200
+
+    data = response.json()
+    expires_at = datetime.fromisoformat(data["subscription_expires_at"])
+
+    assert before_request + timedelta(days=30) <= expires_at
+    assert expires_at <= after_request + timedelta(days=30)
+
+
+def test_extend_active_subscription_adds_30_days_to_current_expiration(client):
+    create_user(client, telegram_id=1001)
+
+    first_response = client.post("/users/1001/extend-subscription")
+
+    assert first_response.status_code == 200
+
+    first_data = first_response.json()
+    first_expires_at = datetime.fromisoformat(first_data["subscription_expires_at"])
+
+    second_response = client.post("/users/1001/extend-subscription")
+
+    assert second_response.status_code == 200
+
+    second_data = second_response.json()
+    second_expires_at = datetime.fromisoformat(second_data["subscription_expires_at"])
+
+    assert second_expires_at == first_expires_at + timedelta(days=30)
+
+
+def test_extend_expired_subscription_sets_30_days_from_now(client):
+    create_user(client, telegram_id=1001)
+
+    client.patch(
+        "/users/1001",
+        json={
+            "subscription_expires_at": "2020-01-01T00:00:00"
+        },
+    )
+
+    before_request = datetime.utcnow()
+
+    response = client.post("/users/1001/extend-subscription")
+
+    after_request = datetime.utcnow()
+
+    assert response.status_code == 200
+
+    data = response.json()
+    expires_at = datetime.fromisoformat(data["subscription_expires_at"])
+
+    assert before_request + timedelta(days=30) <= expires_at
+    assert expires_at <= after_request + timedelta(days=30)
+
+
+def test_extend_expired_subscription_sets_30_days_from_now(client):
+    create_user(client, telegram_id=1001)
+
+    client.patch(
+        "/users/1001",
+        json={
+            "subscription_expires_at": "2020-01-01T00:00:00"
+        },
+    )
+
+    before_request = datetime.now()
+
+    response = client.post("/users/1001/extend-subscription")
+
+    after_request = datetime.now()
+
+    assert response.status_code == 200
+
+    data = response.json()
+    expires_at = datetime.fromisoformat(data["subscription_expires_at"])
+
+    assert before_request + timedelta(days=30) <= expires_at
+    assert expires_at <= after_request + timedelta(days=30)
+
+
+def test_extend_subscription_for_not_existing_user_returns_404(client):
+    response = client.post("/users/9999/extend-subscription")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
+
+
