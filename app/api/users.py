@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db.models import User
 from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.services.subscription_service import extend_subscription as extend_user_subscription
 
 
 
@@ -103,3 +104,11 @@ def delete_user(telegram_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return None
+
+
+@router.post("/{telegram_id}/extend-subscription", response_model=UserRead)
+def extend_subscription(
+    telegram_id: int,
+    db: Session = Depends(get_db),
+):
+    return extend_user_subscription(db=db, telegram_id=telegram_id)
