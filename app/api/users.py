@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.db.models import User
-from app.schemas.user import UserCreate, UserRead, UserUpdate
-from app.services.subscription_service import extend_subscription as extend_user_subscription
+from app.schemas.user import UserCreate, UserRead, UserUpdate, SubscriptionStatusRead
+from app.services.subscription_service import extend_subscription as extend_user_subscription, get_subscription_status
 
 
 
@@ -112,3 +112,11 @@ def extend_subscription(
     db: Session = Depends(get_db),
 ):
     return extend_user_subscription(db=db, telegram_id=telegram_id)
+
+
+@router.get("/{telegram_id}/subscription-status", response_model=SubscriptionStatusRead)
+def subscription_status(
+    telegram_id: int,
+    db: Session = Depends(get_db),
+):
+    return get_subscription_status(db=db, telegram_id=telegram_id)

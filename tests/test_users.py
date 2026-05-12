@@ -133,6 +133,7 @@ def test_delete_not_existing_user_returns_404(client):
     assert response.json()["detail"] == "User not found"
 
 
+# ____________Т Е С Т Ы   Н А   П О Д П И С К У______________________
 def test_extend_subscription_for_user_without_subscription(client):
     create_response = create_user(client, telegram_id=1001)
 
@@ -199,11 +200,11 @@ def test_extend_expired_subscription_sets_30_days_from_now(client):
         },
     )
 
-    before_request = datetime.utcnow()
+    before_request = datetime.now()
 
     response = client.post("/users/1001/extend-subscription")
 
-    after_request = datetime.utcnow()
+    after_request = datetime.now()
 
     assert response.status_code == 200
 
@@ -244,5 +245,80 @@ def test_extend_subscription_for_not_existing_user_returns_404(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
+# ____________Т Е С Т Ы   Н А   П О Д П И С К У______________________
+
+# ____________Т Е С Т Ы   Н А   С Т А Т У С   П О Д П И С К И______________________
+def test_get_subscription_status_for_user_without_subscription(client):
+    create_user(client, telegram_id=1001)
+
+    response = client.get("/users/1001/subscription-status")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["telegram_id"] == 1001
+    assert data["is_active"] is False
+    assert data["subscription_expires_at"] is None
+    assert data["days_left"] == 0
 
 
+def test_get_subscription_status_for_not_existing_user_returns_404(client):
+    response = client.get("/users/9999/subscription-status")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
+
+
+def test_get_subscription_status_for_active_subscription(client):
+    create_user(client, telegram_id=1001)
+
+    future_date = datetime.now() + timedelta(days=10)
+
+    patch_response = client.patch(
+        "/users/1001",
+        json={
+            "subscription_expires_at": future_date.isoformat()
+        },
+    )
+
+    assert patch_response.status_code == 200
+
+    response = client.get("/users/1001/subscription-status")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["telegram_id"] == 1001
+    assert data["is_active"] is True
+    assert data["subscription_expires_at"] is not None
+    assert data["days_left"] > 0
+    assert data["days_left"] <= 10
+
+
+def test_get_subscription_status_for_expired_subscription(client):
+    create_user(client, telegram_id=1001)
+
+    past_date = datetime.now() - timedelta(days=1)
+
+    patch_response = client.patch(
+        "/users/1001",
+        json={
+            "subscription_expires_at": past_date.isoformat()
+        },
+    )
+
+    assert patch_response.status_code == 200
+
+    response = client.get("/users/1001/subscription-status")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["telegram_id"] == 1001
+    assert data["is_active"] is False
+    assert data["subscription_expires_at"] is not None
+    assert data["days_left"] == 0
+# ____________Т Е С Т Ы   Н А   С Т А Т У С   П О Д П И С К И______________________

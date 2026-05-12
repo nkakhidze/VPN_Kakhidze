@@ -26,3 +26,10 @@ class UserRead(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SubscriptionStatusRead(BaseModel):
+    telegram_id: int
+    is_active: bool
+    subscription_expires_at: datetime | None
+    days_left: int
