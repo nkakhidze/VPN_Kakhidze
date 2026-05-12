@@ -4,3 +4,6 @@ sqlalchemy
 psycopg[binary]
 pydantic-settings
 alembic
+apscheduler
+requests
+aiogram
