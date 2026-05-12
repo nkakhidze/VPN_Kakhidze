@@ -61,3 +61,21 @@ def get_subscription_status(db: Session, telegram_id: int) -> SubscriptionStatus
             subscription_expires_at=user.subscription_expires_at,
             days_left=(user.subscription_expires_at - now).days,
         )
+
+
+def check_needing_rescadular_for_user(db: Session, telegram_id: int) -> bool:
+    user = db.query(User).filter(
+        User.telegram_id == telegram_id
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+    check_sub = get_subscription_status(db, user.telegram_id)
+    if not check_sub.is_active:
+        return False
+    if 1 <= check_sub.days_left <= 3:
+        return True
+    else: return False
+
