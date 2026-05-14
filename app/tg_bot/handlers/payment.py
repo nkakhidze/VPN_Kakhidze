@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery
 
 from app.tg_bot.client.backend_client import (
     BackendClientError,
-    extend_subscription,
+    create_mock_payment,
 )
 
 
@@ -16,12 +16,10 @@ router = Router()
 async def extend_subscription_callback(callback: CallbackQuery):
     telegram_user = callback.from_user
 
-    if telegram_user is None:
-        await callback.answer("Не удалось определить пользователя.", show_alert=True)
-        return
-
     try:
-        user = await extend_subscription(telegram_id=telegram_user.id)
+        payment_result = await create_mock_payment(
+            telegram_id=telegram_user.id,
+        )
 
     except BackendClientError:
         await callback.answer(
@@ -30,23 +28,23 @@ async def extend_subscription_callback(callback: CallbackQuery):
         )
         return
 
-    if user is None:
+    if payment_result is None:
         await callback.answer(
             "Пользователь не найден. Сначала нажмите /start.",
             show_alert=True,
         )
         return
 
-    expires_at = user["subscription_expires_at"]
+    payment = payment_result["payment"]
+    expires_at = payment_result["subscription_expires_at"]
 
-    if expires_at is not None:
-        expires_at_dt = datetime.fromisoformat(expires_at)
-        expires_at_text = expires_at_dt.strftime("%d.%m.%Y %H:%M")
-    else:
-        expires_at_text = "неизвестно"
+    expires_at_dt = datetime.fromisoformat(expires_at)
+    expires_at_text = expires_at_dt.strftime("%d.%m.%Y %H:%M")
 
     await callback.message.answer(
-        f"✅ VPN продлён на 30 дней.\n\n"
+        f"✅ Оплата прошла успешно.\n\n"
+        f"Сумма: {payment['amount']} {payment['currency']}\n"
+        f"VPN продлён на 30 дней.\n"
         f"Подписка действует до: {expires_at_text}"
     )
 
