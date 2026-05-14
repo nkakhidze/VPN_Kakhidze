@@ -1,4 +1,5 @@
-from datetime import datetime, time
+from datetime import UTC, datetime, time
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -9,14 +10,41 @@ from app.services.subscription_service import (
     should_remind_about_subscription,
 )
 
+DEFAULT_TIMEZONE = "Europe/Moscow"
 
-def build_today_remind_at() -> datetime:
-    today = datetime.now().date()
 
-    return datetime.combine(
-        today,
+def get_valid_timezone(timezone_name: str | None) -> ZoneInfo:
+    if not timezone_name:
+        return ZoneInfo(DEFAULT_TIMEZONE)
+
+    return ZoneInfo(timezone_name)
+
+
+
+def build_user_today_remind_at_utc(user_timezone: str | None) -> datetime:
+    """
+    Возвращает момент, когда у пользователя сегодня будет 10:00,
+    но в UTC и без timezone-info.
+
+    Пример:
+    10:00 Asia/Tomsk -> 03:00 UTC
+    10:00 Europe/Moscow -> 07:00 UTC
+    """
+
+    timezone = get_valid_timezone(user_timezone)
+
+    now_for_user = datetime.now(timezone)
+    user_today = now_for_user.date()
+
+    user_10_am = datetime.combine(
+        user_today,
         time(hour=10, minute=0),
+        tzinfo=timezone,
     )
+
+    remind_at_utc = user_10_am.astimezone(UTC)
+
+    return remind_at_utc.replace(tzinfo=None)
 
 
 def rebuild_subscription_reminders(session: Session) -> tuple[int, int]:
@@ -27,7 +55,9 @@ def rebuild_subscription_reminders(session: Session) -> tuple[int, int]:
     1. Удаляем все записи из subscription_reminders.
     2. Проходим по пользователям.
     3. Если подписка активна и осталось 1–3 дня —
-       создаём одну запись в subscription_reminders.
+       создаём одну запись.
+    4. remind_at считаем как сегодняшние 10:00
+       в часовом поясе конкретного пользователя.
     """
 
     deleted_count = session.query(SubscriptionReminder).delete()
@@ -35,7 +65,6 @@ def rebuild_subscription_reminders(session: Session) -> tuple[int, int]:
     users = session.scalars(select(User)).all()
 
     created_count = 0
-    remind_at = build_today_remind_at()
 
     for user in users:
         if not should_remind_about_subscription(session, user.telegram_id):
@@ -45,7 +74,7 @@ def rebuild_subscription_reminders(session: Session) -> tuple[int, int]:
 
         reminder = SubscriptionReminder(
             telegram_id=user.telegram_id,
-            remind_at=remind_at,
+            remind_at=build_user_today_remind_at_utc(user.timezone),
             days_left=subscription_status.days_left,
         )
 
@@ -60,15 +89,16 @@ def rebuild_subscription_reminders(session: Session) -> tuple[int, int]:
 def get_due_subscription_reminders(session: Session) -> list[tuple[SubscriptionReminder, User]]:
     """
     Возвращает напоминания, у которых уже наступило remind_at.
-    Сразу возвращает и User, чтобы бот получил first_name/username.
+    remind_at хранится в UTC без tzinfo.
+    Поэтому сравниваем с datetime.utcnow().
     """
 
-    now = datetime.now()
+    now_utc = datetime.utcnow()
 
     statement = (
         select(SubscriptionReminder, User)
         .join(User, User.telegram_id == SubscriptionReminder.telegram_id)
-        .where(SubscriptionReminder.remind_at <= now)
+        .where(SubscriptionReminder.remind_at <= now_utc)
     )
 
     return list(session.execute(statement).all())

@@ -132,7 +132,7 @@ def test_get_due_subscription_reminders_returns_reminder_with_user_data(client):
 
     create_subscription_reminder(
         telegram_id=telegram_id,
-        remind_at=datetime.now() - timedelta(minutes=1),
+        remind_at=datetime.utcnow() - timedelta(minutes=1),
         days_left=2,
     )
 
@@ -161,7 +161,7 @@ def test_get_due_subscription_reminders_does_not_return_future_reminder(client):
 
     create_subscription_reminder(
         telegram_id=telegram_id,
-        remind_at=datetime.now() + timedelta(hours=1),
+        remind_at=datetime.utcnow() + timedelta(hours=1),
         days_left=2,
     )
 
@@ -186,7 +186,7 @@ def test_delete_subscription_reminder(client):
 
     create_subscription_reminder(
         telegram_id=telegram_id,
-        remind_at=datetime.now() - timedelta(minutes=1),
+        remind_at=datetime.utcnow() - timedelta(minutes=1),
         days_left=2,
     )
 
