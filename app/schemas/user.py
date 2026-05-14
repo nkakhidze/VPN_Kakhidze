@@ -7,11 +7,13 @@ class UserCreate(BaseModel):
     telegram_id: int
     username: str | None = None
     first_name: str | None = None
+    timezone: str = "Europe/Moscow"
 
 
 class UserUpdate(BaseModel):
     username: str | None = None
     first_name: str | None = None
+    timezone: str | None = None
     subscription_expires_at: datetime | None = None
     last_reminded_at: datetime | None = None
 
@@ -20,6 +22,7 @@ class UserRead(BaseModel):
     telegram_id: int
     username: str | None
     first_name: str | None
+    timezone: str
     subscription_expires_at: datetime | None
     last_reminded_at: datetime | None
     created_at: datetime

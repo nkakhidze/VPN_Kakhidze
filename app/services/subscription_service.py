@@ -1,14 +1,14 @@
 from datetime import datetime, timedelta
 
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.models import User
-from app.db.database import get_db
-from app.schemas.user import SubscriptionStatusRead, UserRead
+from app.schemas.user import SubscriptionStatusRead
 
 
 SUBSCRIPTION_DAYS = 30
+
 
 def extend_subscription(db: Session, telegram_id: int) -> User:
     user = db.query(User).filter(
@@ -23,7 +23,7 @@ def extend_subscription(db: Session, telegram_id: int) -> User:
 
     now = datetime.now()
 
-    if user.subscription_expires_at is None or (user.subscription_expires_at <= now):
+    if user.subscription_expires_at is None or user.subscription_expires_at <= now:
         user.subscription_expires_at = now + timedelta(days=SUBSCRIPTION_DAYS)
     else:
         user.subscription_expires_at += timedelta(days=SUBSCRIPTION_DAYS)
@@ -52,30 +52,21 @@ def get_subscription_status(db: Session, telegram_id: int) -> SubscriptionStatus
             telegram_id=user.telegram_id,
             is_active=False,
             subscription_expires_at=user.subscription_expires_at,
-            days_left=0
-        )
-    else:
-        return SubscriptionStatusRead(
-            telegram_id=user.telegram_id,
-            is_active=True,
-            subscription_expires_at=user.subscription_expires_at,
-            days_left=(user.subscription_expires_at - now).days,
+            days_left=0,
         )
 
+    return SubscriptionStatusRead(
+        telegram_id=user.telegram_id,
+        is_active=True,
+        subscription_expires_at=user.subscription_expires_at,
+        days_left=(user.subscription_expires_at - now).days,
+    )
 
-def check_needing_rescadular_for_user(db: Session, telegram_id: int) -> bool:
-    user = db.query(User).filter(
-        User.telegram_id == telegram_id
-    ).first()
 
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-    check_sub = get_subscription_status(db, user.telegram_id)
-    if not check_sub.is_active:
+def should_remind_about_subscription(db: Session, telegram_id: int) -> bool:
+    subscription_status = get_subscription_status(db, telegram_id)
+
+    if not subscription_status.is_active:
         return False
-    if 1 <= check_sub.days_left <= 3:
-        return True
-    else: return False
 
+    return 1 <= subscription_status.days_left <= 3
