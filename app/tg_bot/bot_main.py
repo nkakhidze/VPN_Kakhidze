@@ -6,6 +6,7 @@ from aiogram import Bot, Dispatcher
 from app.tg_bot.config.config_reader import bot_settings
 from app.tg_bot.handlers.start import router as start_router
 from app.tg_bot.handlers.profile import router as profile_router
+from app.tg_bot.handlers.payment import router as payment_router
 from app.scheduler.setup_scheduler import setup_scheduler
 
 
@@ -14,6 +15,7 @@ dp = Dispatcher()
 def register_handlers():
     dp.include_router(start_router)
     dp.include_router(profile_router)
+    dp.include_router(payment_router)
 
 
 async def main():
