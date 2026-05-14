@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.database import get_db
-from app.db.models import User, SubscriptionReminder
+from app.db.models import User, SubscriptionReminder, Payment
 from app.main import app
 
 
@@ -73,11 +73,13 @@ def clean_users(apply_migrations):
     db = TestingSessionLocal()
 
     try:
+        db.query(Payment).delete()
         db.query(SubscriptionReminder).delete()
         db.query(User).delete()
         db.commit()
         yield
     finally:
+        db.query(Payment).delete()
         db.query(SubscriptionReminder).delete()
         db.query(User).delete()
         db.commit()

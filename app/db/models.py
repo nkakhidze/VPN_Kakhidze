@@ -26,3 +26,16 @@ class SubscriptionReminder(Base):
     remind_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     days_left: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now,)
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String, default="RUB", nullable=False)
+    status: Mapped[str] = mapped_column(String, default="pending", nullable=False)
+    provider: Mapped[str] = mapped_column(String, default="mock", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

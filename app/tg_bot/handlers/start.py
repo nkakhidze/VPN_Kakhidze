@@ -7,6 +7,7 @@ from app.tg_bot.client.backend_client import (
     create_user,
     get_subscription_status,
 )
+from app.tg_bot.keyboards.inline import get_payment
 
 
 router = Router()
@@ -52,6 +53,7 @@ async def start_command(message: Message):
             f"Статус подписки: активна.\n"
             f"Осталось дней: {subscription_status['days_left']}."
         )
+        await message.answer(text)
     else:
         text = (
             f"Привет, {first_name}!\n\n"
@@ -59,5 +61,4 @@ async def start_command(message: Message):
             f"Статус подписки: не активна.\n\n"
             f"Позже здесь появится покупка доступа."
         )
-
-    await message.answer(text)
+        await message.answer(text, reply_markup=get_payment())
